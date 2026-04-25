@@ -1,1 +1,169 @@
+#include <GL/freeglut.h>
+#include <vector>
+#include <cmath>
 
+
+
+int windowWidth = 800, windowHeight = 600;
+
+// Paddle
+float paddleX = 350;
+float paddleWidth = 100;
+float paddleHeight = 20;
+
+// Ball
+float ballX = 400, ballY = 300;
+float ballRadius = 10;
+float ballDX = 4, ballDY = 4;
+
+// Bricks
+int rows = 5, cols = 10;
+float brickWidth = 70, brickHeight = 20;
+bool bricks[5][10];
+
+// Initialize bricks
+void initBricks() {
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            bricks[i][j] = true;
+}
+
+// Draw paddle
+void drawPaddle() {
+    glColor3f(0.0, 0.0, 1.0);
+    glBegin(GL_QUADS);
+    glVertex2f(paddleX, 50);
+    glVertex2f(paddleX + paddleWidth, 50);
+    glVertex2f(paddleX + paddleWidth, 50 + paddleHeight);
+    glVertex2f(paddleX, 50 + paddleHeight);
+    glEnd();
+}
+
+// Draw ball
+void drawBall() {
+    glColor3f(1.0, 0.0, 0.0);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(ballX, ballY);
+    for (int i = 0; i <= 100; i++) {
+        float angle = i * 2.0f * 3.1416 / 100;
+        glVertex2f(ballX + cos(angle) * ballRadius,
+                   ballY + sin(angle) * ballRadius);
+    }
+    glEnd();
+}
+
+// Draw bricks
+void drawBricks() {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (bricks[i][j]) {
+                float x = j * (brickWidth + 5) + 35;
+                float y = windowHeight - (i + 1) * (brickHeight + 5);
+
+                glColor3f(0.0, 1.0, 0.0);
+                glBegin(GL_QUADS);
+                glVertex2f(x, y);
+                glVertex2f(x + brickWidth, y);
+                glVertex2f(x + brickWidth, y + brickHeight);
+                glVertex2f(x, y + brickHeight);
+                glEnd();
+            }
+        }
+    }
+}
+
+// Collision detection
+void checkCollision() {
+    // Wall collision
+    if (ballX <= 0 || ballX >= windowWidth)
+        ballDX = -ballDX;
+    if (ballY >= windowHeight)
+        ballDY = -ballDY;
+
+    // Paddle collision
+    if (ballY <= 70 &&
+        ballX >= paddleX &&
+        ballX <= paddleX + paddleWidth) {
+        ballDY = -ballDY;
+    }
+
+    // Brick collision
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (bricks[i][j]) {
+                float x = j * (brickWidth + 5) + 35;
+                float y = windowHeight - (i + 1) * (brickHeight + 5);
+
+                if (ballX >= x && ballX <= x + brickWidth &&
+                    ballY >= y && ballY <= y + brickHeight) {
+                    bricks[i][j] = false;
+                    ballDY = -ballDY;
+                }
+            }
+        }
+    }
+}
+
+// Update function
+void update(int value) {
+    ballX += ballDX;
+    ballY += ballDY;
+
+    checkCollision();
+
+    // Reset if ball falls
+    if (ballY < 0) {
+        ballX = 400;
+        ballY = 300;
+    }
+
+    glutPostRedisplay();
+    glutTimerFunc(16, update, 0);
+}
+
+// Display
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    drawPaddle();
+    drawBall();
+    drawBricks();
+
+    glFlush();
+}
+
+// Keyboard
+void specialKeys(int key, int x, int y) {
+    if (key == GLUT_KEY_LEFT) {
+        paddleX -= 20;
+        if (paddleX < 0) paddleX = 0;
+    }
+    if (key == GLUT_KEY_RIGHT) {
+        paddleX += 20;
+        if (paddleX + paddleWidth > windowWidth)
+            paddleX = windowWidth - paddleWidth;
+    }
+}
+
+// Init
+void init() {
+    glClearColor(0, 0, 0, 1);
+    gluOrtho2D(0, windowWidth, 0, windowHeight);
+    initBricks();
+}
+
+// Main
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitWindowSize(windowWidth, windowHeight);
+    glutCreateWindow("DX Ball Game");
+
+    init();
+
+    glutDisplayFunc(display);
+    glutSpecialFunc(specialKeys);
+    glutTimerFunc(16, update, 0);
+
+    glutMainLoop();
+    return 0;
+}
