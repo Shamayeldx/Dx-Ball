@@ -1,4 +1,4 @@
-🎮 DX Ball Assignment (Simple)
+🎮 DX Ball Assignment 
 
 You have to make a DX Ball game using OpenGL (C++).
 
