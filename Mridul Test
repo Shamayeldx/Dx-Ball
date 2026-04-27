@@ -1,1 +1,126 @@
-test
+#include <GL/glut.h>
+#include <vector>
+
+using namespace std;
+
+// Window size
+int width = 600, height = 400;
+
+// Paddle
+float paddleX = 250;
+float paddleWidth = 100;
+
+// Ball
+float ballX = 300, ballY = 200;
+float ballDX = 0.3, ballDY = 0.3;
+float ballSize = 10;
+
+// Bricks
+vector<vector<int>> bricks(5, vector<int>(10, 1));
+
+// Draw rectangle
+void drawRect(float x, float y, float w, float h) {
+    glBegin(GL_QUADS);
+    glVertex2f(x, y);
+    glVertex2f(x + w, y);
+    glVertex2f(x + w, y + h);
+    glVertex2f(x, y + h);
+    glEnd();
+}
+
+// Display
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Paddle
+    drawRect(paddleX, 20, paddleWidth, 10);
+
+    // Ball
+    drawRect(ballX, ballY, ballSize, ballSize);
+
+    // Bricks
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 10; j++) {
+            if (bricks[i][j]) {
+                drawRect(j * 60 + 5, height - (i + 1) * 30, 50, 20);
+            }
+        }
+    }
+
+    glutSwapBuffers();
+}
+
+// Update
+void update(int value) {
+    // Move ball
+    ballX += ballDX;
+    ballY += ballDY;
+
+    // Wall collision
+    if (ballX <= 0 || ballX + ballSize >= width)
+        ballDX *= -1;
+    if (ballY + ballSize >= height)
+        ballDY *= -1;
+
+    // Paddle collision
+    if (ballY <= 30 &&
+        ballX + ballSize >= paddleX &&
+        ballX <= paddleX + paddleWidth) {
+        ballDY *= -1;
+    }
+
+    // Brick collision
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 10; j++) {
+            if (bricks[i][j]) {
+                float bx = j * 60 + 5;
+                float by = height - (i + 1) * 30;
+
+                if (ballX < bx + 50 && ballX + ballSize > bx &&
+                    ballY < by + 20 && ballY + ballSize > by) {
+                    bricks[i][j] = 0;
+                    ballDY *= -1;
+                }
+            }
+        }
+    }
+
+    // Reset if ball falls
+    if (ballY < 0) {
+        ballX = 300;
+        ballY = 200;
+    }
+
+    glutPostRedisplay();
+    glutTimerFunc(16, update, 0);
+}
+
+// Keyboard
+void specialKeys(int key, int x, int y) {
+    if (key == GLUT_KEY_LEFT && paddleX > 0)
+        paddleX -= 20;
+    if (key == GLUT_KEY_RIGHT && paddleX + paddleWidth < width)
+        paddleX += 20;
+}
+
+// Init
+void init() {
+    glClearColor(0, 0, 0, 1);
+    gluOrtho2D(0, width, 0, height);
+}
+
+// Main
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitWindowSize(width, height);
+    glutCreateWindow("Simple DX Ball");
+
+    init();
+    glutDisplayFunc(display);
+    glutSpecialFunc(specialKeys);
+    glutTimerFunc(16, update, 0);
+
+    glutMainLoop();
+    return 0;
+}
