@@ -1,1 +1,43 @@
+#include <GL/glut.h>
+#include <cmath>
+#include <cstring>
 
+const int W = 600, H = 700;
+
+float padX = 250, padY = 30;
+const float PAD_W = 100, PAD_H = 12;
+
+float bx = 300, by = 100;
+float dx = 3, dy = 3;
+const float BR = 10;
+
+const int COLS = 8, ROWS = 5;
+bool bricks[ROWS][COLS];
+const float BW = 65, BH = 20, BOFF_X = 20, BOFF_Y = 580;
+
+bool gameOver = false, won = false;
+
+void initBricks() {
+    for (int r = 0; r < ROWS; r++)
+        for (int c = 0; c < COLS; c++)
+            bricks[r][c] = true;
+}
+
+void drawRect(float x, float y, float w, float h) {
+    glBegin(GL_QUADS);
+        glVertex2f(x,     y);
+        glVertex2f(x + w, y);
+        glVertex2f(x + w, y + h);
+        glVertex2f(x,     y + h);
+    glEnd();
+}
+
+void drawBall() {
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(bx, by);
+    for (int i = 0; i <= 20; i++) {
+        float a = i * 2 * M_PI / 20;
+        glVertex2f(bx + BR * cos(a), by + BR * sin(a));
+    }
+    glEnd();
+}
