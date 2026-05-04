@@ -1,1 +1,157 @@
+#include <GL/glut.h>
+#include <cmath>
+#include <iostream>
 
+using namespace std;
+
+float ballX = 0.0f, ballY = -0.5f;
+float ballDX = 0.01f, ballDY = 0.01f;
+float ballRadius = 0.03f;
+
+float paddleX = 0.0f;
+float paddleWidth = 0.3f;
+
+const int rows = 5;
+const int cols = 10;
+bool bricks[rows][cols];
+
+int score = 0;
+
+void initBricks() {
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            bricks[i][j] = true;
+}
+
+void drawBall() {
+    glBegin(GL_POLYGON);
+    for (int i = 0; i < 360; i++) {
+        float theta = i * 3.1415926f / 180.0f;
+        float x = ballX + ballRadius * std::cos(theta);
+        float y = ballY + ballRadius * std::sin(theta);
+        glVertex2f(x, y);
+    }
+    glEnd();
+}
+
+void drawPaddle() {
+    glBegin(GL_QUADS);
+    glVertex2f(paddleX - paddleWidth, -0.8f);
+    glVertex2f(paddleX + paddleWidth, -0.8f);
+    glVertex2f(paddleX + paddleWidth, -0.85f);
+    glVertex2f(paddleX - paddleWidth, -0.85f);
+    glEnd();
+}
+
+void drawBricks() {
+    float startX = -0.9f, startY = 0.8f;
+    float brickW = 0.18f, brickH = 0.08f;
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (bricks[i][j]) {
+                float x = startX + j * brickW;
+                float y = startY - i * brickH;
+
+                glBegin(GL_QUADS);
+                glVertex2f(x, y);
+                glVertex2f(x + brickW - 0.01f, y);
+                glVertex2f(x + brickW - 0.01f, y - brickH + 0.01f);
+                glVertex2f(x, y - brickH + 0.01f);
+                glEnd();
+            }
+        }
+    }
+}
+
+void checkBrickCollision() {
+    float startX = -0.9f, startY = 0.8f;
+    float brickW = 0.18f, brickH = 0.08f;
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (bricks[i][j]) {
+                float x = startX + j * brickW;
+                float y = startY - i * brickH;
+
+                if (ballX > x && ballX < x + brickW &&
+                    ballY > y - brickH && ballY < y) {
+                    bricks[i][j] = false;
+                    ballDY = -ballDY;
+                    score += 10;
+                }
+            }
+        }
+    }
+}
+
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glColor3f(1, 1, 1);
+    drawBall();
+
+    glColor3f(0, 1, 0);
+    drawPaddle();
+
+    glColor3f(1, 0, 0);
+    drawBricks();
+
+    glutSwapBuffers();
+}
+
+void update(int value) {
+    ballX += ballDX;
+    ballY += ballDY;
+
+    if (ballX > 1 || ballX < -1)
+        ballDX = -ballDX;
+
+    if (ballY > 1)
+        ballDY = -ballDY;
+
+    if (ballY < -0.75f &&
+        ballX < paddleX + paddleWidth &&
+        ballX > paddleX - paddleWidth) {
+        ballDY = -ballDY;
+    }
+
+    if (ballY < -1) {
+        ballX = 0.0f;
+        ballY = -0.5f;
+    }
+
+    checkBrickCollision();
+
+    glutPostRedisplay();
+    glutTimerFunc(16, update, 0);
+}
+
+void keyboard(int key, int, int) {
+    if (key == GLUT_KEY_LEFT)
+        paddleX -= 0.1f;
+
+    if (key == GLUT_KEY_RIGHT)
+        paddleX += 0.1f;
+}
+
+void init() {
+    glClearColor(0, 0, 0, 1);
+    initBricks();
+}
+
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitWindowSize(800, 600);
+    glutCreateWindow("DX Ball - GLUT");
+
+    init();
+
+    glutDisplayFunc(display);
+    glutSpecialFunc(keyboard);
+    glutTimerFunc(16, update, 0);
+
+    glutMainLoop();
+    return 0;
+}
