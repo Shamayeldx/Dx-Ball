@@ -1,155 +1,64 @@
+#include <windows.h>
 #include <GL/glut.h>
-#include <cmath>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
-const int W = 600, H = 700;
+#define W 800
+#define H 600
+#define ROWS 5
+#define COLS 10
 
-float padX = 250, padY = 30;
-const float PAD_W = 100, PAD_H = 12;
+int state = 0;
 
-float bx = 300, by = 100;
-float dx = 3, dy = 3;
-const float BR = 10;
+float bx = 400, by = 150, vx = 4, vy = 4;
+int br = 10;
 
-const int COLS = 8, ROWS = 5;
-bool bricks[ROWS][COLS];
-const float BW = 65, BH = 20, BOFF_X = 20, BOFF_Y = 580;
+float px = 340, py = 30, pw = 120, ph = 15;
 
-bool gameOver = false, won = false;
+int lives = 3, score = 0, hiScore = 0, level = 1;
+int startTime = 0, gameTime = 0;
+int fireball = 0;
 
-void initBricks() {
-    for (int r = 0; r < ROWS; r++)
-        for (int c = 0; c < COLS; c++)
-            bricks[r][c] = true;
-}
+int brick[ROWS][COLS];
+float bcol[ROWS][3] = {
+    {1,0.2,0.2},{1,0.6,0},{1,1,0},{0,1,0.3},{0.3,0.6,1}
+};
 
-void drawRect(float x, float y, float w, float h) {
-    glBegin(GL_QUADS);
-        glVertex2f(x,     y);
-        glVertex2f(x + w, y);
-        glVertex2f(x + w, y + h);
-        glVertex2f(x,     y + h);
-    glEnd();
-}
+struct Drop { int active, type; float x, y; };
+Drop drops[10];
 
-void drawBall() {
-    glBegin(GL_TRIANGLE_FAN);
-    glVertex2f(bx, by);
-    for (int i = 0; i <= 20; i++) {
-        float a = i * 2 * M_PI / 20;
-        glVertex2f(bx + BR * cos(a), by + BR * sin(a));
+void line(int x1, int y1, int x2, int y2) {
+    int dx = abs(x2-x1), dy = abs(y2-y1);
+    int sx = x1<x2?1:-1, sy = y1<y2?1:-1;
+    int err = dx-dy;
+    glBegin(GL_POINTS);
+    while(1) {
+        glVertex2i(x1, y1);
+        if(x1==x2 && y1==y2) break;
+        int e2 = 2*err;
+        if(e2 > -dy) { err -= dy; x1 += sx; }
+        if(e2 <  dx) { err += dx; y1 += sy; }
     }
     glEnd();
 }
-void drawText(const char* str, float x, float y) {
-    glRasterPos2f(x, y);
-    for (int i = 0; str[i]; i++)
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, str[i]);
+
+void circlePts(int xc, int yc, int x, int y) {
+    glBegin(GL_POINTS);
+    glVertex2i(xc+x,yc+y); glVertex2i(xc-x,yc+y);
+    glVertex2i(xc+x,yc-y); glVertex2i(xc-x,yc-y);
+    glVertex2i(xc+y,yc+x); glVertex2i(xc-y,yc+x);
+    glVertex2i(xc+y,yc-x); glVertex2i(xc-y,yc-x);
+    glEnd();
 }
-
-void display() {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    if (gameOver) {
-        glColor3f(1, 0, 0);
-        drawText("GAME OVER! Press R to restart", 140, 350);
-        glutSwapBuffers(); return;
+void circle(int xc, int yc, int r) {
+    int x=0, y=r, d=1-r;
+    circlePts(xc,yc,x,y);
+    while(x<y) {
+        if(d<0) d += 2*x+3;
+        else { d += 2*(x-y)+5; y--; }
+        x++;
+        circlePts(xc,yc,x,y);
     }
-    if (won) {
-        glColor3f(0, 1, 0);
-        drawText("YOU WIN! Press R to restart", 160, 350);
-        glutSwapBuffers(); return;
-    }
-
-    float colors[ROWS][3] = {
-        {1,0,0}, {1,0.5,0}, {1,1,0}, {0,1,0}, {0,0.5,1}
-    };
-    for (int r = 0; r < ROWS; r++) {
-        glColor3fv(colors[r]);
-        for (int c = 0; c < COLS; c++) {
-            if (!bricks[r][c]) continue;
-            float brickX = BOFF_X + c * (BW + 5);
-            float brickY = BOFF_Y - r * (BH + 5);
-            drawRect(brickX, brickY, BW, BH);
-        }
-    }
-
-    glColor3f(0.2, 0.6, 1);
-    drawRect(padX, padY, PAD_W, PAD_H);
-
-    glColor3f(1, 1, 1);
-    drawBall();
-
-    glutSwapBuffers();
-}
-
-void update(int) {
-    if (gameOver || won) return;
-
-    bx += dx; by += dy;
-
-    if (bx - BR < 0)   { bx = BR;      dx = fabs(dx); }
-    if (bx + BR > W)   { bx = W - BR;  dx = -fabs(dx); }
-    if (by + BR > H)   { by = H - BR;  dy = -fabs(dy); }
-    if (by - BR < 0)   { gameOver = true; }
-
-    if (by - BR < padY + PAD_H && by + BR > padY &&
-        bx > padX && bx < padX + PAD_W) {
-        by = padY + PAD_H + BR;
-        dy = fabs(dy);
-    }
-
-    bool allGone = true;
-    for (int r = 0; r < ROWS; r++) {
-        for (int c = 0; c < COLS; c++) {
-            if (!bricks[r][c]) continue;
-            allGone = false;
-            float brickX = BOFF_X + c * (BW + 5);
-            float brickY = BOFF_Y - r * (BH + 5);
-            if (bx + BR > brickX && bx - BR < brickX + BW &&
-                by + BR > brickY && by - BR < brickY + BH) {
-                bricks[r][c] = false;
-                dy = -dy;
-            }
-        }
-    }
-    if (allGone) won = true;
-
-    glutPostRedisplay();
-    glutTimerFunc(16, update, 0);
-}
-
-void keyboard(unsigned char key, int, int) {
-    if (key == 'r' || key == 'R') {
-        bx = 300; by = 100; dx = 3; dy = 3;
-        padX = 250; gameOver = false; won = false;
-        initBricks();
-        glutTimerFunc(16, update, 0);
-    }
-}
-
-void specialKey(int key, int, int) {
-    if (key == GLUT_KEY_LEFT  && padX > 0)         padX -= 20;
-    if (key == GLUT_KEY_RIGHT && padX + PAD_W < W) padX += 20;
-    glutPostRedisplay();
-}
-
-int main(int argc, char** argv) {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(W, H);
-    glutCreateWindow("DX Ball");
-
-    glClearColor(0.1, 0.1, 0.1, 1);
-    glMatrixMode(GL_PROJECTION);
-    gluOrtho2D(0, W, 0, H);
-
-    initBricks();
-
-    glutDisplayFunc(display);
-    glutKeyboardFunc(keyboard);
-    glutSpecialFunc(specialKey);
-    glutTimerFunc(16, update, 0);
-    glutMainLoop();
-    return 0;
 }
